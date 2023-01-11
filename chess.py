@@ -119,17 +119,10 @@ def _calculate_permutations(board, pieces) -> int:
 
 
 if __name__ == '__main__':
-    val1 = calculate_layouts(3, 3, king=2, rook=1)
-    print(val1)
+    print(calculate_layouts(3, 3, king=2, rook=1))
+    print(calculate_layouts(4, 4, knight=4, rook=2))
+    print(calculate_layouts(3, 3, queen=3))
 
-    val1 = calculate_layouts(4, 4, knight=4, rook=2)
-    print(val1)
-
-    val1 = calculate_layouts(3, 3, queen=3)
-    print(val1)
-
-    print('=========')
-    val1 = calculate_layouts(6, 9, queen=1, king=2, bishop=1, rook=1, knight=1)
-    print(val1)
-    print('+++++++++')
+    # val = calculate_layouts(6, 9, queen=1, king=2, bishop=1, rook=1, knight=1)
+    # print(val)
     # 20136752
