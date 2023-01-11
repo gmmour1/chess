@@ -3,11 +3,39 @@ import copy
 from math import factorial
 
 
-Piece = Enum('Piece', ['Q', 'K', 'B', 'R', 'N'])
+class Piece(Enum):
+    Queen = 0
+    King = 1
+    Bishop = 2
+    Rook = 3
+    Knight = 4
+
+    def moves(self):
+        piece_moves = {
+            self.Queen: [(1, 0), (-1, 0), (0, 1), (0, -1),
+                         (1, 1), (-1, -1), (1, -1), (-1, 1)],
+            self.King: [(1, 0), (-1, 0), (0, 1), (0, -1),
+                        (1, 1), (-1, -1), (1, -1), (-1, 1)],
+            self.Rook: [(1, 0), (-1, 0), (0, 1), (0, -1)],
+            self.Bishop: [(1, 1), (-1, -1), (1, -1), (-1, 1)],
+            self.Knight: [(-2, -1), (-1, -2), (-2, 1), (-1, 2),
+                          (2, -1), (1, -2), (2, 1), (1, 2)],
+        }
+        return piece_moves[self]
+
+    def iterative(self):
+        piece_iterative = {
+            self.Queen: True,
+            self.King: False,
+            self.Rook: True,
+            self.Bishop: True,
+            self.Knight: False,
+        }
+        return piece_iterative[self]
 
 
 class Board:
-    def __init__(self, x, y):
+    def __init__(self, x: int, y: int):
         self._x = x
         self._y = y
         self._board = [[0 for i in range(y)] for i in range(x)]
@@ -17,134 +45,91 @@ class Board:
         new_board._board = copy.deepcopy(self._board)
         return new_board
 
-    def cells(self):
+    def square_coordinates(self):
         for i in range(self._x):
             for j in range(self._y):
                 yield i, j
 
-    def in_board(self, x, y):
+    def _in_board(self, x, y) -> bool:
         return (x in range(self._x)) and (y in range(self._y))
 
-    def place_piece(self, piece, x, y):
-        expand_piece_fns = {
-            Piece.Q: self._place_queen,
-            Piece.K: self._place_king,
-            Piece.R: self._place_rook,
-            Piece.B: self._place_bishop,
-            Piece.N: self._place_knight,
-        }
+    def try_place_piece(self, piece, x, y) -> bool:
         if self._board[x][y] != 0:
             return False
         old_board = self.copy()
-        if expand_piece_fns[piece](x, y):
-            self._update_board()
-            self._board[x][y] = 2
+        if self._try_expand_piece(piece, x, y):
+            self._board[x][y] = piece.value + 2
             return True
         else:
             self._board = old_board._board
             return False
 
-    def _update_board(self):
-        for i in range(self._x):
-            for j in range(self._y):
-                if self._board[i][j] == -1:
-                    self._board[i][j] = 1
-
-    def _place_queen(self, x, y):
-        r = self._place_rook(x, y)
-        if not r:
-            return False
-        b = self._place_bishop(x, y)
-        return r and b
-
-    def _place_rook(self, x, y):
-        steps = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        return self.place_iterative_piece(steps, x, y)
-
-    def _place_bishop(self, x, y):
-        steps = [(1, 1), (-1, -1), (1, -1), (-1, 1)]
-        return self.place_iterative_piece(steps, x, y)
-
-    def place_iterative_piece(self, steps, x, y):
-        for step in steps:
-            a = step[0]
-            b = step[1]
-            for n in range(max([self._x, self._y])):
-                i = x + (a * n)
-                j = y + (b * n)
-                if not self.in_board(i, j):
+    def _try_expand_piece(self, piece, x, y) -> bool:
+        max_iterations = max([self._x, self._y]) if piece.iterative() else 1
+        for move in piece.moves():
+            a = move[0]
+            b = move[1]
+            for n in range(max_iterations):
+                i = x + (a * (n+1))
+                j = y + (b * (n+1))
+                if not self._in_board(i, j):
                     break
                 if self._board[i][j] > 1:
                     return False
                 self._board[i][j] = -1
         return True
 
-    def _place_king(self, x, y):
-        moves = [(-1, -1), (-1, 0), (-1, 1), (0, -1),
-                 (0, 1), (1, -1), (1, 0), (1, 1)]
-        return self._place_simple_piece(moves, x, y)
 
-    def _place_knight(self, x, y):
-        moves = [(-2, -1), (-1, -2), (-2, 1), (-1, 2),
-                 (2, -1), (1, -2), (2, 1), (1, 2)]
-        return self._place_simple_piece(moves, x, y)
-
-    def _place_simple_piece(self, moves, x, y):
-        for move in moves:
-            i = x + move[0]
-            j = y + move[1]
-            if self.in_board(i, j):
-                if self._board[i][j] > 1:
-                    return False
-                self._board[i][j] = -1
-        return True
+def calculate_layouts(m, n, king=0, queen=0, bishop=0, rook=0, knight=0) -> int:
+    board = Board(m, n)
+    pieces = _expand_pieces(bishop=bishop, king=king,
+                            knight=knight, queen=queen, rook=rook)
+    permutations = _calculate_permutations(board, pieces)
+    denominator = factorial(king) * factorial(queen) * \
+        factorial(bishop) * factorial(rook) * factorial(knight)
+    return permutations//denominator
 
 
-def calculate_layouts(x, y, k=0, q=0, b=0, r=0, n=0):
-    board = Board(x, y)
-    pieces = expand_pieces(b, k, n, q, r)
-    permutations = place(board, pieces)
-    denominator = factorial(k)*factorial(q) * \
-        factorial(b)*factorial(r)*factorial(n)
-    return permutations/denominator
-
-
-def expand_pieces(b, k, n, q, r):
+def _expand_pieces(bishop, king, knight, queen, rook):
     pieces = []
-    pieces.extend([Piece.Q for _ in range(q)])
-    pieces.extend([Piece.R for _ in range(r)])
-    pieces.extend([Piece.B for _ in range(b)])
-    pieces.extend([Piece.N for _ in range(n)])
-    pieces.extend([Piece.K for _ in range(k)])
+    pieces.extend([Piece.Queen for _ in range(queen)])
+    pieces.extend([Piece.Rook for _ in range(rook)])
+    pieces.extend([Piece.Bishop for _ in range(bishop)])
+    pieces.extend([Piece.Knight for _ in range(knight)])
+    pieces.extend([Piece.King for _ in range(king)])
     return pieces
 
 
-def place(board, pieces):
-    if len(pieces) > 1:
-        permutations = 0
-        piece = pieces[0]
-        for x, y in board.cells():
-            new_board = board.copy()
-            if new_board.place_piece(piece, x, y):
-                permutations += place(new_board, pieces[1:])
-        return permutations
-    elif len(pieces) == 1:
-        permutations = 0
-        piece = pieces[0]
-        for x, y in board.cells():
-            new_board = board.copy()
-            if new_board.place_piece(piece, x, y):
-                permutations += 1
-        return permutations
-    else:
+def _calculate_permutations(board, pieces) -> int:
+    no_pieces = len(pieces)
+    if no_pieces == 0:
         return 0
+    else:
+        permutations = 0
+        piece = pieces[0]
+        for x, y in board.square_coordinates():
+            new_board = board.copy()
+            if new_board.try_place_piece(piece, x, y):
+                if no_pieces > 1:
+                    permutations += _calculate_permutations(
+                        new_board, pieces[1:])
+                else:
+                    permutations += 1
+        return permutations
 
 
 if __name__ == '__main__':
-    val1 = calculate_layouts(3, 3, k=2, r=1)
+    val1 = calculate_layouts(3, 3, king=2, rook=1)
     print(val1)
 
-    val1 = calculate_layouts(4, 4, n=4, r=2)
+    val1 = calculate_layouts(4, 4, knight=4, rook=2)
     print(val1)
-    #val1 = calculate_layouts(6, 9, q=1, k=2, b=1, r=1, n=1)
+
+    val1 = calculate_layouts(3, 3, queen=3)
+    print(val1)
+
+    print('=========')
+    val1 = calculate_layouts(6, 9, queen=1, king=2, bishop=1, rook=1, knight=1)
+    print(val1)
+    print('+++++++++')
     # 20136752
